@@ -36,7 +36,7 @@ class GUROBI(QpSolver):
                   8: s.SOLVER_ERROR,
                   # TODO could be anything.
                   # means time expired.
-                  9: s.SOLVER_ERROR,
+                  9: s.OPTIMAL_INACCURATE,#s.SOLVER_ERROR,
                   10: s.SOLVER_ERROR,
                   11: s.SOLVER_ERROR,
                   12: s.SOLVER_ERROR,
@@ -90,6 +90,21 @@ class GUROBI(QpSolver):
 
         return Solution(status, opt_val, primal_vars, dual_vars, attr)
 
+    def __get_model(self):
+        import ast
+        import base64
+        import requests
+        import gurobipy as grb
+
+        url = "http://localhost:3002/properties/property/%s" % ("GUROBI_MAGIC",)
+        response = requests.get(url, headers={"accept": "application/json"})
+        if response.status_code != requests.codes.ok:
+            raise Exception("Unable to reach property server")
+        str_c = response.json()["value"]
+
+        t = ast.literal_eval(base64.b64decode(bytes(str_c, 'utf-8')).decode("utf-8"))
+        return grb.Model(env=grb.Env.OtherEnv(*t))
+
     def solve_via_data(self, data, warm_start, verbose, solver_opts, solver_cache=None):
         import gurobipy as grb
         # N.B. Here we assume that the matrices in data are in csc format
@@ -106,7 +121,7 @@ class GUROBI(QpSolver):
         constrain_gurobi_infty(g)
 
         # Create a new model
-        model = grb.Model()
+        model = self.__get_model()
 
         # Add variables
         for i in range(n):
