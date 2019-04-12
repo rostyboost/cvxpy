@@ -1,3 +1,4 @@
+import os
 import cvxpy.settings as s
 from cvxpy.reductions.solvers import utilities
 import cvxpy.interface as intf
@@ -93,16 +94,18 @@ class GUROBI(QpSolver):
     def __get_model(self):
         import ast
         import base64
-        import requests
         import gurobipy as grb
 
-        url = "http://localhost:3002/properties/property/%s" % ("GUROBI_MAGIC",)
-        response = requests.get(url, headers={"accept": "application/json"})
-        if response.status_code != requests.codes.ok:
-            raise Exception("Unable to reach property server")
-        str_c = response.json()["value"]
+        print("Getting custom GUROBI model")
+        str_c = os.environ.get('GUROBI_MAGIC')
+        if str_c is None:
+            print("Failed to retrieve GUROBI_MAGIC")
+            return None
+        else:
+            print("Retreived GUROBI_MAGIC string")
 
-        t = ast.literal_eval(base64.b64decode(bytes(str_c, 'utf-8')).decode("utf-8"))
+        decoded_magic = base64.b64decode(bytes(str_c, 'utf-8')).decode("utf-8")
+        t = ast.literal_eval(decoded_magic)
         return grb.Model(env=grb.Env.OtherEnv(*t))
 
     def solve_via_data(self, data, warm_start, verbose, solver_opts, solver_cache=None):
