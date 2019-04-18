@@ -96,13 +96,10 @@ class GUROBI(QpSolver):
         import base64
         import gurobipy as grb
 
-        print("Getting custom GUROBI model")
         str_c = os.environ.get('GUROBI_MAGIC')
         if str_c is None:
             print("Failed to retrieve GUROBI_MAGIC")
             return None
-        else:
-            print("Retreived GUROBI_MAGIC string")
 
         decoded_magic = base64.b64decode(bytes(str_c, 'utf-8')).decode("utf-8")
         t = ast.literal_eval(decoded_magic)
@@ -191,7 +188,7 @@ class GUROBI(QpSolver):
         # Set verbosity and other parameters
         model.setParam("OutputFlag", verbose)
         # TODO user option to not compute duals.
-        model.setParam("QCPDual", True)
+        model.setParam("QCPDual", False)
 
         for key, value in solver_opts.items():
             model.setParam(key, value)
