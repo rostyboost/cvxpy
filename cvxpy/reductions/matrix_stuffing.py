@@ -55,10 +55,31 @@ def extract_mip_idx(variables):
 
 
 class MatrixStuffing(Reduction):
-    """TODO(akshayka): Document this class."""
+    """Stuffs a problem into a standard form for a family of solvers."""
+
     __metaclass__ = abc.ABCMeta
 
     def apply(self, problem):
+        """Returns a stuffed problem.
+
+        The returned problem is a minimization problem in which every
+        constraint in the problem has affine arguments that are expressed in
+        the form A @ x + b.
+
+
+        Parameters
+        ----------
+        problem: The problem to stuff; the arguments of every constraint
+            must be affine
+        constraints: A list of constraints, whose arguments are affine
+
+        Returns
+        -------
+        Problem
+            The stuffed problem
+        InverseData
+            Data for solution retrieval
+        """
         inverse_data = InverseData(problem)
         # Form the constraints
         extractor = CoeffExtractor(inverse_data)
@@ -79,8 +100,9 @@ class MatrixStuffing(Reduction):
         # Batch expressions together, then split apart.
         expr_list = [arg for c in cons for arg in c.args]
         Afull, bfull = extractor.affine(expr_list)
-        Afull = cvxtypes.constant()(Afull)
-        bfull = cvxtypes.constant()(bfull)
+        if 0 not in Afull.shape and 0 not in bfull.shape:
+            Afull = cvxtypes.constant()(Afull)
+            bfull = cvxtypes.constant()(bfull)
 
         new_cons = []
         offset = 0
@@ -92,9 +114,9 @@ class MatrixStuffing(Reduction):
                 arg_list.append(reshape(A*new_var + b, arg.shape))
                 offset += arg.size
             new_cons.append(con.copy(arg_list))
+            # Map old constraint id to new constraint id.
             inverse_data.cons_id_map[con.id] = new_cons[-1].id
 
-        # Map of old constraint id to new constraint id.
         inverse_data.minimize = type(problem.objective) == Minimize
         new_prob = problems.problem.Problem(Minimize(new_obj), new_cons)
         return new_prob, inverse_data
