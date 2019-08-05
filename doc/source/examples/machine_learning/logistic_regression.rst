@@ -27,20 +27,19 @@ This implies that
    \mathrm{Pr} (Y=0 \mid X = x) = \frac{1}{1 + \exp(\beta^T x)}.
 
 We fit :math:`\beta` by maximizing the log-likelihood of the data, plus
-a regularization term :math:`\lambda \|{\beta}\|_1` with
+a regularization term :math:`\lambda \|{\beta_{1:}}\|_1` with
 :math:`\lambda > 0`:
 
 .. math::
 
 
-   \ell(\beta) = \sum_{i=1}^{m} y_i \beta^T x_i - \log(1 + \exp (\beta^T x_i) - \lambda \|{\beta}\|_1.
+   \ell(\beta) = \sum_{i=1}^{m} y_i \beta^T x_i - \log(1 + \exp (\beta^T x_i)) - \lambda \|{\beta_{1:}}\|_1.
 
 Because :math:`\ell` is a concave function of :math:`\beta`, this is a
 convex optimization problem.
 
 .. code:: python
 
-    from __future__ import division
     import cvxpy as cp
     import numpy as np
     import matplotlib.pyplot as plt
@@ -48,25 +47,25 @@ convex optimization problem.
 In the following code we generate data with :math:`n=20` features by
 randomly choosing :math:`x_i` and a sparse
 :math:`\beta_{\mathrm{true}} \in {\bf R}^n`. We then set
-:math:`y_i = \mathbb{1}[\beta_{\mathrm{true}}^T x_i  - z_i > 0]`, where
+:math:`y_i = \mathbb{1}[\beta_{\mathrm{true}}^T x_i - z_i > 0]`, where
 the :math:`z_i` are i.i.d. normal random variables. We divide the data
 into training and test sets with :math:`m=1000` examples each.
 
 .. code:: python
 
-    np.random.seed(0)
+    np.random.seed(1)
     n = 20
     m = 1000
     density = 0.2
-    beta_true = np.random.randn(n,1)
+    beta_true = np.random.randn(n)
     idxs = np.random.choice(range(n), int((1-density)*n), replace=False)
     for idx in idxs:
         beta_true[idx] = 0
     
-    sigma = 45
+    sigma = 3
     X = np.random.normal(0, 5, size=(m,n))
     X[:, 0] = 1.0
-    Y = X @ beta_true + np.random.normal(0, sigma, size=(m,1))
+    Y = X @ beta_true + np.random.normal(0, sigma, size=m)
     Y[Y > 0] = 1
     Y[Y <= 0] = 0
     
@@ -80,12 +79,12 @@ We next formulate the optimization problem using CVXPY.
 
 .. code:: python
 
-    beta = cp.Variable((n,1))
+    beta = cp.Variable(n)
     lambd = cp.Parameter(nonneg=True)
     log_likelihood = cp.sum(
-        cp.reshape(cp.multiply(Y, X @ beta), (m,)) -
-        cp.log_sum_exp(cp.hstack([np.zeros((m,1)), X @ beta]), axis=1) - 
-        lambd * cp.norm(beta, 1)
+        cp.multiply(Y, X @ beta) -
+        cp.log_sum_exp(cp.vstack([np.zeros(m), X @ beta]), axis=0) - 
+        lambd * cp.norm(beta[1:], 1)
     )
     problem = cp.Problem(cp.Maximize(log_likelihood))
 
@@ -140,7 +139,7 @@ are the most important.
 .. code:: python
 
     for i in range(n):
-        plt.plot(lambda_vals, [wi[i,0] for wi in beta_vals])
+        plt.plot(lambda_vals, [wi for wi in beta_vals])
     plt.xlabel(r"$\lambda$", fontsize=16)
     plt.xscale("log")
 
