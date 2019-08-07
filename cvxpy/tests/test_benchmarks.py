@@ -119,3 +119,27 @@ class TestBenchmarks(BaseTest):
             ConeMatrixStuffing().apply(mat)
 
         benchmark(stuff, p, iters=1)
+
+    def test_MIP_many_constraints_gurobi(self):
+        m = 200
+        n = 200
+        M = cp.Variable((m, n), boolean=True)
+
+        r = 20 * np.ones((m,), dtype=np.int32)
+        r[: m // 2] = 10
+
+        c1 = [M.T * np.ones((m,)) == r]
+        c2 = [M * np.ones((n, 1)) <= np.ones((m, 1))]
+        c3 = [M[m // 2, n // 4] + M[0, 0] >= 1] + [M[m - 1, 0] + M[0, n - 1] <= 1]
+
+        consts = c1 + c2 + c3
+        obj = cp.Minimize(cp.sum(M))
+
+        p = cp.Problem(obj, consts)
+
+        def solve(prob):
+            prob.solve(solver='GUROBI')
+
+        benchmark(solve, p, iters=20)
+
+

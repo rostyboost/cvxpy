@@ -21,6 +21,20 @@ def constrain_gurobi_infty(v):
         if v[i] <= -1e20:
             v[i] = -grb.GRB.INFINITY
 
+def get_grb_env():
+    import ast
+    import base64
+    import gurobipy as grb
+
+    str_c = os.environ.get('GUROBI_MAGIC')
+    if str_c is None:
+        print("Failed to retrieve GUROBI_MAGIC")
+        return None
+
+    decoded_magic = base64.b64decode(bytes(str_c, 'utf-8')).decode("utf-8")
+    t = ast.literal_eval(decoded_magic)
+    return grb.Env.OtherEnv(*t)
+GRB_ENV = get_grb_env()
 
 class GUROBI(QpSolver):
     """QP interface for the Gurobi solver"""
@@ -91,24 +105,10 @@ class GUROBI(QpSolver):
 
         return Solution(status, opt_val, primal_vars, dual_vars, attr)
 
-    def __get_model(self):
-        import ast
-        import base64
-        import gurobipy as grb
-
-        str_c = os.environ.get('GUROBI_MAGIC')
-        if str_c is None:
-            print("Failed to retrieve GUROBI_MAGIC")
-            return None
-
-        decoded_magic = base64.b64decode(bytes(str_c, 'utf-8')).decode("utf-8")
-        t = ast.literal_eval(decoded_magic)
-        return grb.Model(env=grb.Env.OtherEnv(*t))
-
     def solve_via_data(self, data, warm_start, verbose, solver_opts, solver_cache=None):
         import gurobipy as grb
         # N.B. Here we assume that the matrices in data are in csc format
-        P = data[s.P].tocoo()       # Convert matrix to coo format
+        P = data[s.P]
         q = data[s.Q]
         A = data[s.A].tocsr()       # Convert A matrix to csr format
         b = data[s.B]
@@ -121,7 +121,7 @@ class GUROBI(QpSolver):
         constrain_gurobi_infty(g)
 
         # Create a new model
-        model = self.__get_model()
+        model = grb.Model(env=GRB_ENV)
 
         # Add variables
         vtypes = {}
@@ -137,6 +137,11 @@ class GUROBI(QpSolver):
                       lb={i: -grb.GRB.INFINITY for i in range(n)},
                       vtype=vtypes)
         model.update()
+
+        #grb_version = grb.gurobi.version() # (8, 1, 0)
+        #model_attrs = dir(model)
+        #has_addConstrs = "addConstrs" in model_attrs
+
         x = np.array(model.getVars(), copy=False)
 
         if A.shape[0] > 0:
@@ -176,9 +181,11 @@ class GUROBI(QpSolver):
         # Define objective
         obj = grb.QuadExpr()
         if hasattr(model, '_v811_setMObjective'):
+            P = P.tocoo()
             model._v811_setMObjective(0.5 * P, q)
         else:
             if P.count_nonzero():  # If there are any nonzero elms in P
+                P = P.tocoo()
                 obj.addTerms(0.5*P.data, vars=list(x[P.row]),
                              vars2=list(x[P.col]))
             obj.add(grb.LinExpr(q, x))  # Add linear part
@@ -187,8 +194,7 @@ class GUROBI(QpSolver):
 
         # Set verbosity and other parameters
         model.setParam("OutputFlag", verbose)
-        # TODO user option to not compute duals.
-        model.setParam("QCPDual", False)
+        model.setParam("QCPDual", True)
 
         for key, value in solver_opts.items():
             model.setParam(key, value)
