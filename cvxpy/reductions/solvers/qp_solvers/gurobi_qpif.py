@@ -32,12 +32,10 @@ class GUROBI(QpSolver):
                   5: s.UNBOUNDED,
                   4: s.INFEASIBLE_INACCURATE,
                   6: s.INFEASIBLE,
-                  7: s.SOLVER_ERROR,
-                  8: s.SOLVER_ERROR,
-                  # TODO could be anything.
-                  # means time expired.
-                  9: s.SOLVER_ERROR,
-                  10: s.SOLVER_ERROR,
+                  7: s.EARLY_STOPPED,
+                  8: s.EARLY_STOPPED,
+                  9: s.EARLY_STOPPED,
+                  10: s.EARLY_STOPPED,
                   11: s.SOLVER_ERROR,
                   12: s.SOLVER_ERROR,
                   13: s.OPTIMAL_INACCURATE}
@@ -62,8 +60,10 @@ class GUROBI(QpSolver):
 
         # Map GUROBI statuses back to CVXPY statuses
         status = self.STATUS_MAP.get(model.Status, s.SOLVER_ERROR)
+        if status == s.EARLY_STOPPED and model.SolCount == 0:
+            status = s.SOLVER_ERROR
 
-        if status in s.SOLUTION_PRESENT:
+        if model.SolCount > 0:
             opt_val = model.objVal
             x = np.array([x_grb[i].X for i in range(n)])
 

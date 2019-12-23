@@ -34,6 +34,7 @@ INEQ_CONSTR = "<="
 # Solver Constants
 OPTIMAL = "optimal"
 OPTIMAL_INACCURATE = "optimal_inaccurate"
+EARLY_STOPPED = "early_stopped"
 INFEASIBLE = "infeasible"
 INFEASIBLE_INACCURATE = "infeasible_inaccurate"
 UNBOUNDED = "unbounded"
@@ -41,7 +42,7 @@ UNBOUNDED_INACCURATE = "unbounded_inaccurate"
 USER_LIMIT = "user_limit"
 SOLVER_ERROR = "solver_error"
 # Statuses that indicate a solution was found.
-SOLUTION_PRESENT = [OPTIMAL, OPTIMAL_INACCURATE]
+SOLUTION_PRESENT = [OPTIMAL, OPTIMAL_INACCURATE, EARLY_STOPPED]
 # Statuses that indicate the problem is infeasible or unbounded.
 INF_OR_UNB = [INFEASIBLE, INFEASIBLE_INACCURATE,
               UNBOUNDED, UNBOUNDED_INACCURATE]
