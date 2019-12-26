@@ -40,12 +40,10 @@ class GUROBI(SCS):
                   5: s.UNBOUNDED,
                   4: s.SOLVER_ERROR,
                   6: s.SOLVER_ERROR,
-                  7: s.SOLVER_ERROR,
-                  8: s.SOLVER_ERROR,
-                  # TODO could be anything.
-                  # means time expired.
-                  9: s.OPTIMAL_INACCURATE,
-                  10: s.SOLVER_ERROR,
+                  7: s.EARLY_STOPPED,
+                  8: s.EARLY_STOPPED,
+                  9: s.EARLY_STOPPED,
+                  10: s.EARLY_STOPPED,
                   11: s.SOLVER_ERROR,
                   12: s.SOLVER_ERROR,
                   13: s.SOLVER_ERROR}
@@ -230,10 +228,11 @@ class GUROBI(SCS):
         except Exception:
             pass
         solution[s.SOLVE_TIME] = model.Runtime
-        solution["status"] = self.STATUS_MAP.get(model.Status,
-                                                 s.SOLVER_ERROR)
-        if solution["status"] == s.SOLVER_ERROR and model.SolCount:
-            solution["status"] = s.OPTIMAL_INACCURATE
+        status = self.STATUS_MAP.get(model.Status,
+                                     s.SOLVER_ERROR)
+        if status == s.EARLY_STOPPED and model.SolCount == 0:
+            status = s.SOLVER_ERROR
+        solution["status"] = status
 
         return solution
 
