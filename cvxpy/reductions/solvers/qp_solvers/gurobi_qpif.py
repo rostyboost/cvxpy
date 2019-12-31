@@ -61,6 +61,8 @@ class GUROBI(QpSolver):
 
         # Map GUROBI statuses back to CVXPY statuses
         status = self.STATUS_MAP.get(model.Status, s.SOLVER_ERROR)
+        if status == s.SOLVER_ERROR and model.SolCount > 0:
+            status = s.OPTIMAL_INACCURATE
 
         if status in s.SOLUTION_PRESENT:
             opt_val = model.objVal
